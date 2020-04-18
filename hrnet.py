@@ -262,8 +262,8 @@ class HighResolutionNet(nn.Module):
         super(HighResolutionNet, self).__init__()
 
         # stem net
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1,
-                               bias=False)
+        self.conv1 = nn.Conv2d(18, 64, kernel_size=3, stride=2, padding=1,
+                               bias=False) # changed input channels from 3 to 18
         self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
@@ -312,7 +312,7 @@ class HighResolutionNet(nn.Module):
         self.last_layer = nn.Sequential(
             nn.Conv2d(
                 in_channels=last_inp_channels,
-                out_channels=last_inp_channels,
+                out_channels=last_inp_channels,        
                 kernel_size=1,
                 stride=1,
                 padding=0),
@@ -410,12 +410,17 @@ class HighResolutionNet(nn.Module):
 
     def forward(self, x):
         x = self.conv1(x)
+        #print("after conv1: ", x.shape)
         x = self.bn1(x)
+        #print("after bn1: ", x.shape)
         x = self.relu(x)
         x = self.conv2(x)
+        #print("after conv2: ", x.shape)
         x = self.bn2(x)
+        #print("after bn2: ", x.shape)
         x = self.relu(x)
         x = self.layer1(x)
+        #print("after layer1: ", x.shape)
 
         x_list = []
         for i in range(self.stage2_cfg['NUM_BRANCHES']):
@@ -440,16 +445,26 @@ class HighResolutionNet(nn.Module):
             else:
                 x_list.append(y_list[i])
         x = self.stage4(x_list)
+        #print('after branches: ', x.shape)
 
-        # Upsampling
+        # Upsampling low resolution channels to shape of high resolution channel
         x0_h, x0_w = x[0].size(2), x[0].size(3)
         x1 = F.upsample(x[1], size=(x0_h, x0_w), mode='bilinear')
         x2 = F.upsample(x[2], size=(x0_h, x0_w), mode='bilinear')
         x3 = F.upsample(x[3], size=(x0_h, x0_w), mode='bilinear')
 
         x = torch.cat([x[0], x1, x2, x3], 1)
-
+        #print('after upsampling: ', x.shape)
         x = self.last_layer(x)
+        #print('after last layer: ', x.shape)
+        
+        # Upsample to get corret output dimension
+        x = F.upsample(x, size=(800, 800), mode='bilinear')
+        #print('after upsampling: ', x.shape)
+        
+        # Use sigmoid to get probabilities
+        x = torch.sigmoid(x).squeeze(1)
+        #print('after sigmoid: ', x.shape)
 
         return x
 
@@ -475,6 +490,7 @@ class HighResolutionNet(nn.Module):
 
 def get_seg_model(cfg, **kwargs):
     model = HighResolutionNet(cfg, **kwargs)
-    model.init_weights(cfg.MODEL.PRETRAINED)
+    # Initialize weights from normal distribution (because we cannot use pretrained weights)
+    model.init_weights()
 
     return model
