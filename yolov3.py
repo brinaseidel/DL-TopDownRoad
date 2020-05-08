@@ -1203,13 +1203,19 @@ class ModelEMA:
 
 
 
-def create_modules(module_defs, img_size):
+def create_modules(module_defs, img_size, depth):
     # Constructs module list of layer blocks from module configuration in module_defs
     global ONNX_EXPORT
     img_size = [img_size] * 2 if isinstance(img_size, int) else img_size  # expand if necessary
     #_ = module_defs.pop(0)  # cfg training hyperparams (unused)
     module_defs = module_defs[1:]
-    output_filters = [18]  # input channels - changed from 3 to 18
+
+    # UPDATE INPUT CHANNELS
+    if depth:
+        output_filters = [24]
+    else:
+        output_filters = [18]  # input channels - changed from 3 to 18
+
     module_list = nn.ModuleList()
     routs = []  # list of layers which rout to deeper layers
     yolo_index = -1
@@ -1414,11 +1420,11 @@ class YOLOLayer(nn.Module):
 class Darknet(nn.Module):
     # YOLOv3 object detection model
     
-    def __init__(self, cfg, img_size=(416, 416), verbose=False):
+    def __init__(self, cfg, img_size=(416, 416), verbose=False, depth=False):
         super(Darknet, self).__init__()
         
         self.module_defs = parse_model_cfg(cfg)
-        self.module_list, self.routs = create_modules(self.module_defs, img_size)
+        self.module_list, self.routs = create_modules(self.module_defs, img_size, depth)
         self.yolo_layers = get_yolo_layers(self)
         initialize_weights(self) # Note: I checked, this doesn't use any pretrained weights.
 
@@ -1476,8 +1482,8 @@ class Darknet(nn.Module):
         for i, module in enumerate(self.module_list):
             
             name = module.__class__.__name__
-            #print("before {}: {}".format(name, x.shape))
-            #print("out: {}".format(out.shape))
+            # print("before {}: {}".format(name, x.shape))
+
             if name in ['WeightedFeatureFusion', 'FeatureConcat']:  # sum, concat
                 if verbose:
                     l = [i - 1] + module.layers  # layers
@@ -1488,7 +1494,7 @@ class Darknet(nn.Module):
                 yolo_out.append(module(x, out))
             else:  # run module directly, i.e. mtype = 'convolutional', 'upsample', 'maxpool', 'batchnorm2d' etc.
                 x = module(x)
-                #print("after {}: {}".format(name, x.shape))
+                # print("after {}: {}".format(name, x.shape))
 
             out.append(x if self.routs[i] else [])
             
