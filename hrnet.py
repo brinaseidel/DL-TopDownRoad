@@ -257,13 +257,17 @@ blocks_dict = {
 
 class HighResolutionNet(nn.Module):
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, depth, **kwargs):
         extra = config.MODEL.EXTRA
         super(HighResolutionNet, self).__init__()
 
-        # stem net
-        self.conv1 = nn.Conv2d(18, 64, kernel_size=3, stride=2, padding=1,
-                               bias=False) # changed input channels from 3 to 18
+        # use different numbers of channels depending on depth
+        if depth:
+            self.conv1 = nn.Conv2d(24, 64, kernel_size=3, stride=2, padding=1,
+                                   bias=False) # changed input channels from 3 to 24
+        else:
+            self.conv1 = nn.Conv2d(18, 64, kernel_size=3, stride=2, padding=1,
+                                   bias=False) # changed input channels from 3 to 18
         self.bn1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
@@ -488,8 +492,8 @@ class HighResolutionNet(nn.Module):
             model_dict.update(pretrained_dict)
             self.load_state_dict(model_dict)
 
-def get_seg_model(cfg, **kwargs):
-    model = HighResolutionNet(cfg, **kwargs)
+def get_seg_model(cfg, depth = False, **kwargs):
+    model = HighResolutionNet(cfg, depth, **kwargs)
     # Initialize weights from normal distribution (because we cannot use pretrained weights)
     model.init_weights()
 

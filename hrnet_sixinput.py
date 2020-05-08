@@ -257,17 +257,21 @@ blocks_dict = {
 
 class HighResolutionNet(nn.Module):
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, config, depth, **kwargs):
         extra = config.MODEL.EXTRA
         super(HighResolutionNet, self).__init__()
 
         # stem net
-        self.conv1_0 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv1_1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv1_2 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv1_3 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv1_4 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv1_5 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        if depth:
+            image_input_channels = 4
+        else:
+            image_input_channels = 3
+        self.conv1_0 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1_1 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1_2 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1_3 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1_4 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv1_5 = nn.Conv2d(image_input_channels, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1_0 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.bn1_1 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.bn1_2 = BatchNorm2d(64, momentum=BN_MOMENTUM)
@@ -515,8 +519,8 @@ class HighResolutionNet(nn.Module):
             model_dict.update(pretrained_dict)
             self.load_state_dict(model_dict)
 
-def get_seg_model_sixinput(cfg, **kwargs):
-    model = HighResolutionNet(cfg, **kwargs)
+def get_seg_model_sixinput(cfg, depth = False, **kwargs):
+    model = HighResolutionNet(cfg, depth, **kwargs)
     # Initialize weights from normal distribution (because we cannot use pretrained weights)
     model.init_weights()
 
